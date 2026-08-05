@@ -4,6 +4,7 @@ import { createServer as createViteServer } from 'vite';
 import { freeTranslateText } from './src/services/freeTranslationService';
 import { z } from 'zod';
 import { GoogleGenAI, Type } from '@google/genai';
+import { createClient } from '@supabase/supabase-js';
 
 let genAIClient: GoogleGenAI | null = null;
 function getGenAI(): GoogleGenAI | null {
@@ -46,6 +47,16 @@ const TranslateRequestSchema = z.object({
   glossaryTerms: z.array(z.any()).optional().default([]),
 });
 
+const PredictiveAiRequestSchema = z.object({
+  vehicle_id: z.string().uuid('Invalid vehicle_id format'),
+  plate: z.string().min(1),
+  status: z.string().optional(),
+  mileage: z.number().optional(),
+  active_fault_codes: z.array(z.string()).optional(),
+  maintenance_history: z.array(z.any()).optional(),
+  telemetry: z.record(z.any()).optional()
+}).strict();
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -55,6 +66,59 @@ async function startServer() {
   // API Endpoint: Phase 2 Gemini 3.6 Flash Predictive AI Failure Forecasting Engine
   app.post('/api/predictive-ai', async (req, res) => {
     try {
+      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+      if (isRateLimited(clientIp)) {
+        return res.status(429).json({ error: 'Rate limit exceeded. Please try again in a minute.' });
+      }
+
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+      }
+      const token = authHeader.split(' ')[1];
+
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        return res.status(500).json({ error: 'Supabase env vars not configured for auth verification' });
+      }
+
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        global: {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      });
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+
+      const role = user.user_metadata?.role || user.app_metadata?.role;
+      const allowedRoles = ['DIRECTOR', 'FLEET_MANAGER', 'MAINTENANCE_MANAGER'];
+      if (!allowedRoles.includes(role)) {
+        return res.status(403).json({ error: `Forbidden: Role ${role} is not authorized for predictive AI.` });
+      }
+
+      const parseResult = PredictiveAiRequestSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: 'Invalid input parameters', details: parseResult.error.format() });
+      }
+      const vehicleData = parseResult.data;
+
+      // Tenant Scoping (Cross-Tenant Prevention)
+      // Since supabase client is initialized with the user's JWT, RLS will apply.
+      const { data: vehicle, error: vehicleError } = await supabase
+        .from('vehicles')
+        .select('id')
+        .eq('id', vehicleData.vehicle_id)
+        .single();
+        
+      if (vehicleError || !vehicle) {
+        return res.status(403).json({ error: 'Forbidden: Vehicle not found or belongs to another tenant.' });
+      }
+
       const ai = getGenAI();
       if (!ai) {
         return res.status(503).json({
@@ -63,7 +127,6 @@ async function startServer() {
         });
       }
 
-      const vehicleData = req.body;
       const prompt = `You are NextTransit's Predictive Mechanical Maintenance & Telemetry Failure Forecasting Model.
 Analyze the following CAN-Bus OBD-II telemetry metrics and vehicle history:
 ${JSON.stringify(vehicleData, null, 2)}

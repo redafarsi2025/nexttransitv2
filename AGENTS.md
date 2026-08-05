@@ -39,12 +39,14 @@ NextTransit is a mission-critical Fleet Operations, Telemetry Reconciliation, an
 
 ## User Roles & Navigation Controls (RBAC)
 Ensure that all UI elements respect the following role permissions:
-1. **Director:** High-level strategic metrics, budget variance, and executive approval panels.
-2. **Fleet Manager / Technical Controller:** Full operational access to vehicle health, diagnostics, work order dispatch, and R1–R7 rule overrides.
-3. **Management Controller:** Financial summaries, cost breakdowns, labor rates, and supplier requisitions.
-4. **Logistics Controller:** Inventory levels, parts allocation, stock buffer alerts, and warehouse requisitions.
-5. **Mechanic (Workshop):** Assigned work order queue, mobile OBD scanner simulator, and completion logs.
-6. **Driver:** Pre-trip inspection logger and R6 driver incident reporter.
+1. **SUPER_ADMIN:** Administrateur plateforme SaaS.
+2. **DIRECTOR:** Direction générale & arbitrage budgétaire.
+3. **FLEET_MANAGER:** Supervision opérationnelle de la flotte.
+4. **MAINTENANCE_MANAGER:** Direction technique & dispatch atelier.
+5. **FINANCE:** Contrôle de gestion & conformité comptable SCF.
+6. **OPERATIONS:** Gestionnaire logistique & approvisionnement stock R3.
+7. **MECHANIC:** Technicien d'intervention atelier.
+8. **DRIVER:** Chauffeur & inspections pré-trajet DVIR.
 
 ---
 
@@ -54,6 +56,7 @@ When asked to generate seed or demo data, default to a realistic large-fleet sce
 ---
 
 ## Developer Principles
+* **RBAC Source of Truth:** RBAC role names are the single source of truth in the RLS policies under supabase/migrations — if this file and the database disagree, the database wins; update this file, never assume this file is current.
 * **No Unsolicited Features:** Build precisely what is requested. Keep the layout focused, clean, and scannable.
 * **Zero Broken Handlers:** Ensure all interactive elements, modal toggles, and form actions are fully wired with active state logic.
 * **Type Safety:** Always run linter checks and ensure zero TypeScript errors (`tsc --noEmit`).
