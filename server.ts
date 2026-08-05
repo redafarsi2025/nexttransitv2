@@ -54,7 +54,7 @@ const PredictiveAiRequestSchema = z.object({
   mileage: z.number().optional(),
   active_fault_codes: z.array(z.string()).optional(),
   maintenance_history: z.array(z.any()).optional(),
-  telemetry: z.record(z.any()).optional()
+  telemetry: z.record(z.string(), z.any()).optional()
 }).strict();
 
 async function startServer() {
