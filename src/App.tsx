@@ -8,8 +8,8 @@ import { TopBar } from './components/common/TopBar';
 import { Sidebar } from './components/common/Sidebar';
 import { VehicleDetailModal } from './components/vehicle/VehicleDetailModal';
 import { ProtectedRoute } from './components/guards/ProtectedRoute';
-import { getRoleDefaultRoute } from './components/screens/ForbiddenScreen';
-import { routeToScreenMap } from './routes/routeMap';
+// Removed from ForbiddenScreen to avoid circular dependencies
+import { routeToScreenMap, getRoleDefaultRoute } from './routes/routeMap';
 
 // LandingPage loaded statically as default public route
 import { LandingPage } from './components/screens/LandingPage';

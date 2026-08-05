@@ -5,25 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { Role } from '../../types';
 
-export function getRoleDefaultRoute(role: Role): string {
-  switch (role) {
-    case 'DRIVER':
-      return '/driver';
-    case 'MECHANIC':
-      return '/mechanic';
-    case 'FINANCE':
-      return '/variance';
-    case 'OPERATIONS':
-      return '/inventory';
-    case 'SUPER_ADMIN':
-      return '/tenant-config';
-    case 'DIRECTOR':
-    case 'FLEET_MANAGER':
-    case 'MAINTENANCE_MANAGER':
-    default:
-      return '/dashboard';
-  }
-}
+import { getRoleDefaultRoute } from '../../routes/routeMap';
 
 export const ForbiddenScreen: React.FC = () => {
   const { currentRole, userProfile } = useAuth();

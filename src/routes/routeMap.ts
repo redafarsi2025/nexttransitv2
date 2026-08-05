@@ -1,4 +1,24 @@
-import { ScreenId } from '../types';
+import { ScreenId, Role } from '../types';
+
+export function getRoleDefaultRoute(role: Role): string {
+  switch (role) {
+    case 'DRIVER':
+      return '/driver';
+    case 'MECHANIC':
+      return '/mechanic';
+    case 'FINANCE':
+      return '/variance';
+    case 'OPERATIONS':
+      return '/inventory';
+    case 'SUPER_ADMIN':
+      return '/tenant-config';
+    case 'DIRECTOR':
+    case 'FLEET_MANAGER':
+    case 'MAINTENANCE_MANAGER':
+    default:
+      return '/dashboard';
+  }
+}
 
 export const routeToScreenMap: Record<string, ScreenId> = {
   '/': 'LANDING_PAGE',
