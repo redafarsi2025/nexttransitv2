@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { Role, ScreenId, UserProfile, Subscription } from '../types';
+import { screenToRouteMap, getRoleDefaultRoute } from '../routes/routeMap';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -11,6 +12,8 @@ interface AuthContextType {
   currentScreen: ScreenId;
   isRoleSelectorOpen: boolean;
   syncStatus: 'online' | 'offline' | 'syncing' | 'error';
+  navigate: ((path: string) => void) | null;
+  setNavigate: (fn: (path: string) => void) => void;
   refreshUserSession: () => Promise<void>;
   changeRole: (role: Role, preferredScreen?: ScreenId) => void;
   changeScreen: (screen: ScreenId, shouldNavigate?: boolean) => void;
@@ -28,6 +31,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [currentScreen, setCurrentScreen] = useState<ScreenId>('LANDING_PAGE');
   const [isRoleSelectorOpen, setIsRoleSelectorOpen] = useState<boolean>(false);
   const [syncStatus, setSyncStatus] = useState<'online' | 'offline' | 'syncing' | 'error'>('online');
+  // navigateRef holds the react-router navigate function injected by AppLayout
+  const navigateRef = useRef<((path: string) => void) | null>(null);
+  const [, forceUpdate] = useState(0);
+
+  const setNavigate = useCallback((fn: (path: string) => void) => {
+    navigateRef.current = fn;
+    forceUpdate(n => n + 1);
+  }, []);
 
   const refreshUserSession = useCallback(async () => {
     try {
@@ -35,7 +46,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (session?.user) {
         setCurrentUser(session.user);
         
-        // Fetch User Profile from public.profiles table (was users before, now profiles according to schema)
+        // Fetch User Profile from public.profiles table
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -44,7 +55,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (profile) {
           setUserProfile(profile as UserProfile);
-          setCurrentRole((profile.role as Role) || 'DRIVER');
+          const role = (profile.role as Role) || 'DRIVER';
+          setCurrentRole(role);
+          
+          // Auto-redirect to role workspace after login
+          const defaultRoute = getRoleDefaultRoute(role);
+          if (navigateRef.current && window.location.pathname === '/') {
+            navigateRef.current(defaultRoute);
+          }
           
           // Fetch Company Subscription if available
           if (profile.tenant_id) {
@@ -78,6 +96,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const changeScreen = useCallback((screen: ScreenId, shouldNavigate: boolean = true) => {
     setCurrentScreen(screen);
+    if (shouldNavigate && navigateRef.current) {
+      const route = screenToRouteMap[screen];
+      if (route) {
+        navigateRef.current(route);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -100,6 +124,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         currentScreen,
         isRoleSelectorOpen,
         syncStatus,
+        navigate: navigateRef.current,
+        setNavigate,
         refreshUserSession,
         changeRole,
         changeScreen,

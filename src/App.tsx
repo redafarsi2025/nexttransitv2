@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useFleet } from './context/FleetContext';
 import { AppProviders } from './context/AppProviders';
 import { useAuth } from './context/AuthContext';
@@ -67,9 +67,15 @@ const SmartRouteFallback: React.FC = () => {
 };
 
 const AppLayout: React.FC = () => {
-  const { currentScreen, changeScreen } = useAuth();
+  const { currentScreen, changeScreen, setNavigate } = useAuth();
   const { dir } = useLocalization();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Inject the router navigate function into AuthContext so changeScreen can drive URL navigation
+  useEffect(() => {
+    setNavigate(navigate);
+  }, [navigate, setNavigate]);
 
   // Synchronize location path with context screen state ONCE when location changes
   useEffect(() => {
